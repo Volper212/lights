@@ -20,62 +20,43 @@ end Road
 enum Light:
     case NorthSouthGreen, NorthSouthYellow, EastWestGreen, EastWestYellow
     
-    def next = Light.fromOrdinal((ordinal + 1) % Light.values.size)
+    private def next = Light.fromOrdinal((ordinal + 1) % Light.values.size)
+    
+    def step = next
 end Light
 
 case class StepStatus(leftVehicles: Seq[String]) derives upickle.Writer
 case class Output(stepStatuses: Seq[StepStatus]) derives upickle.Writer
 
-case class Vehicle(id: String, endRoad: Road)
+case class Vehicle(id: String, startRoad: Road, endRoad: Road) {
+    def isTurningLeft = startRoad.left == endRoad
+}
 
-class Vehicles(queues: Seq[Queue[Vehicle]]) {
+class Vehicles(queues: Map[Road, Queue[Vehicle]]) {
     def addVehicle(id: String, startRoad: Road, endRoad: Road) =
-        Vehicles(queues.updated(startRoad.ordinal, queues(startRoad.ordinal) :+ Vehicle(id, endRoad)))
+        Vehicles(queues + (startRoad -> (queues(startRoad) :+ Vehicle(id, startRoad, endRoad))))
 
-    def step(light: Light) = letThroughVehiclesFrom(light match {
-        case Light.NorthSouthGreen => handleStraightGreen(Road.South, Road.North)
-        case Light.EastWestGreen => handleStraightGreen(Road.East, Road.West)
-        case _ => Seq.empty
-    })
-
-    private def letThroughVehiclesFrom(roads: Seq[Road]) = {
-        val (leavingVehicles, newQueues) = roads.map(road => queues(road.ordinal).dequeue).unzip
-        (
-            Vehicles((roads zip newQueues).foldLeft(queues) { (queue, update) =>
-                val (road, newQueue) = update
-                queue.updated(road.ordinal, newQueue)
-            }),
-            leavingVehicles.map(_.id)
-        )
+    def step(light: Light) = {
+        val (leftVehicles, newQueues) = light match {
+            case Light.NorthSouthGreen => handleStraightGreen(Road.South, Road.North)
+            case Light.EastWestGreen => handleStraightGreen(Road.East, Road.West)
+            case _ => (Seq.empty, queues)
+        }
+        (leftVehicles.map(_.id), Vehicles(newQueues))
     }
     
-    private def handleStraightGreen(frontRoad: Road, backRoad: Road) = {
-        val frontQueue = queues(frontRoad.ordinal)
-        val backQueue = queues(backRoad.ordinal)
-        if (frontQueue.isEmpty) {
-            if (backQueue.isEmpty) {
-                Seq.empty
-            } else {
-                Seq(backRoad)
-            }
-        } else {
-            if (backQueue.isEmpty) {
-                Seq(frontRoad)
-            } else {
-                val isFrontTurningLeft = frontRoad.left == frontQueue.front.endRoad
-                val isBackTurningLeft = backRoad.left == backQueue.front.endRoad
-                if (isFrontTurningLeft == isBackTurningLeft) {
-                    Seq(frontRoad, backRoad)
-                } else {
-                    if (isFrontTurningLeft) {
-                        Seq(backRoad)
-                    } else {
-                        Seq(frontRoad)
-                    }
+    private def handleStraightGreen(frontRoad: Road, backRoad: Road) =
+        (queues(frontRoad), queues(backRoad)) match {
+            case (frontVehicle +: newFrontQueue, backVehicle +: newBackQueue) =>
+                (frontVehicle.isTurningLeft, backVehicle.isTurningLeft) match {
+                    case (true, false) => (Seq(backVehicle), queues + (backRoad -> newBackQueue))
+                    case (false, true) => (Seq(frontVehicle), queues + (frontRoad -> newFrontQueue))
+                    case _ => (Seq(frontVehicle, backVehicle), queues + (frontRoad -> newFrontQueue) + (backRoad -> newBackQueue))
                 }
-            }
+            case (frontVehicle +: newFrontQueue, _) => (Seq(frontVehicle), queues + (frontRoad -> newFrontQueue))
+            case (_, backVehicle +: newBackQueue) => (Seq(backVehicle), queues + (backRoad -> newBackQueue))
+            case _ => (Seq.empty, queues)
         }
-    }
 }
 
 class State(light: Light, vehicles: Vehicles, val stepStatuses: Seq[StepStatus]) {
@@ -87,8 +68,8 @@ class State(light: Light, vehicles: Vehicles, val stepStatuses: Seq[StepStatus])
         )
 
     def step() = {
-        val newLight = light.next
-        val (newVehicles, vehiclesLeft) = vehicles.step(newLight)
+        val newLight = light.step
+        val (vehiclesLeft, newVehicles) = vehicles.step(newLight)
         State(newLight, newVehicles, stepStatuses :+ StepStatus(vehiclesLeft))
     }
     
@@ -97,7 +78,7 @@ class State(light: Light, vehicles: Vehicles, val stepStatuses: Seq[StepStatus])
 def runSimulation(commands: Iterable[Command]) =
     val initialState = State(
         Light.EastWestYellow,
-        Vehicles(Seq.fill(Road.values.size)(Queue.empty)),
+        Vehicles(Map.from(Road.values.map((_, Queue.empty)))),
         Seq.empty
     )
     Output(
