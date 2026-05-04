@@ -12,7 +12,7 @@ enum Light {
     def step(vehicleCounts: MapView[Road, Int]) = if (shouldSwitch(vehicleCounts)) next else this
     
     private def shouldSwitch(vehicleCounts: MapView[Road, Int]) = this match {
-        case NorthSouthGreen => shouldSwitchStraightGreen(vehicleCounts(Road.South), vehicleCounts(Road.North), vehicleCounts(Road.West), vehicleCounts(Road.West))
+        case NorthSouthGreen => shouldSwitchStraightGreen(vehicleCounts(Road.South), vehicleCounts(Road.North), vehicleCounts(Road.West), vehicleCounts(Road.East))
         case EastWestGreen => shouldSwitchStraightGreen(vehicleCounts(Road.East), vehicleCounts(Road.West), vehicleCounts(Road.South), vehicleCounts(Road.North))
         case _ => true
     }
