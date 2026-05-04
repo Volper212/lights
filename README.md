@@ -14,6 +14,14 @@ The light changes from green to yellow when **both** of the following conditions
 
 ## Usage
 
+For examples of JSON files, see the `examples` directory.
+
 ```sh
 scala-cli . --server=false -- input.json output.json
+```
+
+## Testing
+
+```sh
+scala-cli test . --server=false
 ```

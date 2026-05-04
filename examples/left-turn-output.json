@@ -1,0 +1,21 @@
+{
+  "stepStatuses": [
+    {
+      "leftVehicles": [
+        "south-right",
+        "north-straight"
+      ]
+    },
+    {
+      "leftVehicles": [
+        "south-straight"
+      ]
+    },
+    {
+      "leftVehicles": [
+        "south-left",
+        "north-left"
+      ]
+    }
+  ]
+}

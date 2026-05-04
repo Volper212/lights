@@ -2,8 +2,11 @@
 
 package lights
 
-@main def main(inputFileName: String, outputFileName: String) = {
-    val input = parseInput(os.read(os.pwd / inputFileName))
+@main def main(inputPath: String, outputPath: String) = {
+    val input = parseInput(os.read(makePath(inputPath)))
     val output = runSimulation(input)
-    os.write.over(os.pwd / outputFileName, upickle.write(output, 2))
+    os.write.over(makePath(outputPath), upickle.write(output, 2))
 }
+
+def makePath(path: String) =
+    if (path(0) == '/') os.Path(path) else os.pwd / os.RelPath(path)
